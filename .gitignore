@@ -27,6 +27,10 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env  # Added to ignore all .env files except for specific cases
+.env.development.local
+.env.test.local
+.env.production.local
 
 # vercel
 .vercel
@@ -34,3 +38,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Ignore all log files
+*.log
+
+# Ignore cache files
+*.cache
+
+# Ignore temporary files
+*.tmp
+*.temp
