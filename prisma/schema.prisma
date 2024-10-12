@@ -1,14 +1,107 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
 generator client {
   provider = "prisma-client-js"
 }
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+model User {
+  id        String    @id @default(uuid())
+  name      String
+  email     String    @unique
+  phone     String    @unique
+  password  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  bookings  Booking[]
+}
+
+model Driver {
+  id             String    @id @default(uuid())
+  name           String
+  email          String    @unique
+  phone          String    @unique
+  currentLat     Float
+  currentLng     Float
+  status         DriverStatus
+  vehicle        Vehicle?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  bookings       Booking[]
+}
+
+model Vehicle {
+  id        String   @id @default(uuid())
+  driver    Driver   @relation(fields: [driverId], references: [id])
+  driverId  String   @unique
+  type      VehicleType
+  plateNumber String @unique
+  capacity   Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Booking {
+  id             String        @id @default(uuid())
+  user           User          @relation(fields: [userId], references: [id])
+  userId         String
+  driver         Driver?       @relation(fields: [driverId], references: [id])
+  driverId       String?
+  pickupLat      Float
+  pickupLng      Float
+  dropoffLat     Float
+  dropoffLng     Float
+  vehicleType    VehicleType
+  status         BookingStatus
+  priceEstimate  Float
+  distance       Float
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  payment        Payment?
+}
+
+model Payment {
+  id           String       @id @default(uuid())
+  booking      Booking      @relation(fields: [bookingId], references: [id])
+  bookingId    String       @unique
+  amount       Float
+  status       PaymentStatus
+  paymentMethod PaymentMethod
+  transactionId String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+enum DriverStatus {
+  AVAILABLE
+  BUSY
+  OFFLINE
+}
+
+enum VehicleType {
+  BIKE
+  CAR
+  TRUCK
+}
+
+enum BookingStatus {
+  PENDING
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum PaymentMethod {
+  CARD
+  CASH
+  WALLET
 }

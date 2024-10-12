@@ -31,7 +31,8 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
-
+*.env
+*.env.example
 # vercel
 .vercel
 
@@ -44,6 +45,7 @@ next-env.d.ts
 
 # Ignore cache files
 *.cache
+dump.rdb
 
 # Ignore temporary files
 *.tmp
