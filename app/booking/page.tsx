@@ -69,6 +69,8 @@ export default function BookingPage() {
     } catch (error) {
       console.error('Error submitting booking:', error);
       // Handle the error, maybe show it to the user
+      // For example, you could set an error state and display it in the UI
+      // setErrorMessage(error.message);
     }
   };
 

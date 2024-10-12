@@ -1,8 +1,8 @@
 import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
 import { calculateDistance, calculatePrice } from '@/utils/pricingUtils';
-import { BookingStatus, VehicleType } from '@prisma/client';
 import { emitNewBooking } from '@/utils/socketEmitter';
+import { BookingStatus, VehicleType } from '@prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
@@ -52,8 +52,13 @@ export async function POST(req: NextRequest) {
         distance,
       },
     });
-    // Emit the new booking event
-    emitNewBooking(booking);
+
+    // Attempt to emit the new booking event, but don't throw an error if it fails
+    try {
+      emitNewBooking(booking);
+    } catch (socketError) {
+      console.warn('Failed to emit new booking event:', socketError);
+    }
 
     return NextResponse.json({ ...booking, id: booking.id }, { status: 201 });
   } catch (error) {

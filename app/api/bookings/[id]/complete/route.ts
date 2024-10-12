@@ -1,7 +1,10 @@
 import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
-import { emitBookingUpdated } from '@/utils/socketEmitter';
-import { BookingStatus, Prisma } from '@prisma/client';
+import {
+  emitBookingUpdated,
+  emitDriverStatusUpdated,
+} from '@/utils/socketEmitter';
+import { BookingStatus, DriverStatus, Prisma } from '@prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(
@@ -17,13 +20,17 @@ export async function POST(
     const bookingId = params.id;
     const userId = session.user.id;
 
-    const updatedBooking = await prisma.$transaction(async (prisma) => {
+    const result = await prisma.$transaction(async (prisma) => {
       const driver = await prisma.driver.findUnique({
         where: { userId: userId },
       });
 
       if (!driver) {
         throw new Error('Driver not found for this user');
+      }
+
+      if (driver.status !== DriverStatus.AVAILABLE) {
+        throw new Error('Driver is not available to accept bookings');
       }
 
       const booking = await prisma.booking.findUnique({
@@ -34,31 +41,35 @@ export async function POST(
         throw new Error('Booking not found');
       }
 
-      if (booking.driverId !== driver.id) {
-        throw new Error('You are not authorized to complete this booking');
+      if (booking.status !== BookingStatus.PENDING) {
+        throw new Error('Booking is no longer available');
       }
 
-      if (booking.status !== BookingStatus.IN_PROGRESS) {
-        throw new Error('Booking cannot be completed at this time');
-      }
-
-      return await prisma.booking.update({
-        where: {
-          id: bookingId,
-          driverId: driver.id,
-          status: BookingStatus.IN_PROGRESS,
-        },
+      const updatedBooking = await prisma.booking.update({
+        where: { id: bookingId, status: BookingStatus.PENDING },
         data: {
-          status: BookingStatus.COMPLETED,
+          driverId: driver.id,
+          status: BookingStatus.ACCEPTED,
         },
       });
+
+      const updatedDriver = await prisma.driver.update({
+        where: { id: driver.id },
+        data: { status: DriverStatus.BUSY },
+      });
+
+      return { updatedBooking, updatedDriver };
     });
 
-    // Emit socket event to notify the user
+    // Emit socket events to notify the user and update driver status
     const io = (await import('@/utils/socket')).default;
-    emitBookingUpdated(bookingId, updatedBooking);
+    emitBookingUpdated(bookingId, result.updatedBooking);
+    emitDriverStatusUpdated(
+      result.updatedDriver.id,
+      result.updatedDriver.status
+    );
 
-    return NextResponse.json(updatedBooking);
+    return NextResponse.json(result.updatedBooking);
   } catch (error) {
     console.error('Error completing booking:', error);
     if (error instanceof Prisma.PrismaClientKnownRequestError) {

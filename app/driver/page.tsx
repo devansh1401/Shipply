@@ -1,10 +1,16 @@
 'use client';
 
 import socket from '@/utils/socket';
-import { Booking, BookingStatus, Driver, VehicleType } from '@prisma/client';
+import {
+  Booking,
+  BookingStatus,
+  Driver,
+  DriverStatus,
+  VehicleType,
+} from '@prisma/client';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 export default function DriverPage() {
   const { data: session, status } = useSession();
@@ -20,20 +26,17 @@ export default function DriverPage() {
     plateNumber: '',
   });
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/');
-    } else if (status === 'authenticated') {
-      fetchDriverDetails();
-    }
-  }, [status, router]);
-
-  const fetchDriverDetails = async () => {
+  const fetchDriverDetails = useCallback(async () => {
     try {
       const response = await fetch('/api/drivers');
       if (response.ok) {
         const driverData = await response.json();
         setDriver(driverData);
+        if (driverData.status === DriverStatus.BUSY) {
+          fetchCurrentBooking();
+        } else {
+          fetchPendingBookings();
+        }
       } else if (response.status === 404) {
         setDriver(null);
         setIsRegistering(true);
@@ -41,22 +44,27 @@ export default function DriverPage() {
     } catch (error) {
       console.error('Error fetching driver details:', error);
     }
-  };
+  }, []); // Empty dependency array as it doesn't use any external values
 
   useEffect(() => {
-    if (driver) {
-      fetchPendingBookings();
-      socket.emit('driverConnect', driver.id);
-
-      socket.on('newBooking', (booking: Booking) => {
-        setAvailableBookings((prev) => [...prev, booking]);
-      });
-
-      return () => {
-        socket.off('newBooking');
-      };
+    if (status === 'unauthenticated') {
+      router.push('/');
+    } else if (status === 'authenticated') {
+      fetchDriverDetails();
     }
-  }, [driver]);
+  }, [status, router, fetchDriverDetails]);
+
+  const fetchCurrentBooking = async () => {
+    try {
+      const response = await fetch('/api/bookings/current');
+      if (response.ok) {
+        const booking = await response.json();
+        setCurrentBooking(booking);
+      }
+    } catch (error) {
+      console.error('Error fetching current booking:', error);
+    }
+  };
 
   const fetchPendingBookings = async () => {
     try {
@@ -69,6 +77,40 @@ export default function DriverPage() {
       console.error('Error fetching pending bookings:', error);
     }
   };
+
+  useEffect(() => {
+    if (driver) {
+      socket.emit('driverConnect', driver.id);
+
+      socket.on('newBooking', (booking: Booking) => {
+        if (driver.status === DriverStatus.AVAILABLE) {
+          setAvailableBookings((prev) => [...prev, booking]);
+        }
+      });
+
+      socket.on('driverStatusUpdated', ({ driverId, status }) => {
+        if (driverId === driver.id) {
+          setDriver((prev) => ({ ...prev!, status }));
+          if (status === DriverStatus.AVAILABLE) {
+            setCurrentBooking(null);
+            fetchPendingBookings();
+          }
+        }
+      });
+
+      socket.on('bookingUpdated', (updatedBooking: Booking) => {
+        if (updatedBooking.driverId === driver.id) {
+          setCurrentBooking(updatedBooking);
+        }
+      });
+
+      return () => {
+        socket.off('newBooking');
+        socket.off('driverStatusUpdated');
+        socket.off('bookingUpdated');
+      };
+    }
+  }, [driver]);
 
   const handleRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,9 +141,8 @@ export default function DriverPage() {
       if (response.ok) {
         const acceptedBooking = await response.json();
         setCurrentBooking(acceptedBooking);
-        setAvailableBookings((prev) =>
-          prev.filter((booking) => booking.id !== bookingId)
-        );
+        setAvailableBookings([]);
+        setDriver((prev) => ({ ...prev!, status: DriverStatus.BUSY }));
       }
     } catch (error) {
       console.error('Error accepting booking:', error);
@@ -125,6 +166,8 @@ export default function DriverPage() {
         );
         if (response.ok) {
           setCurrentBooking(null);
+          setDriver((prev) => ({ ...prev!, status: DriverStatus.AVAILABLE }));
+          fetchPendingBookings();
         }
       } catch (error) {
         console.error('Error completing booking:', error);
@@ -212,6 +255,7 @@ export default function DriverPage() {
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Driver Dashboard</h1>
+      <p className="mb-4">Status: {driver.status}</p>
       {currentBooking ? (
         <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
           <h2 className="text-xl font-semibold mb-2">Current Booking</h2>
@@ -231,7 +275,7 @@ export default function DriverPage() {
             </button>
           )}
         </div>
-      ) : (
+      ) : driver.status === DriverStatus.AVAILABLE ? (
         <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
           <h2 className="text-xl font-semibold mb-2">Available Bookings</h2>
           {availableBookings.length === 0 ? (
@@ -265,6 +309,8 @@ export default function DriverPage() {
             </ul>
           )}
         </div>
+      ) : (
+        <p>You are currently unavailable for new bookings.</p>
       )}
     </div>
   );
