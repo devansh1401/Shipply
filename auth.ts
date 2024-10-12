@@ -1,10 +1,7 @@
-// auth.ts
 import { PrismaAdapter } from '@auth/prisma-adapter';
-import { PrismaClient } from '@prisma/client';
 import NextAuth from 'next-auth';
 import Google from 'next-auth/providers/google';
-
-const prisma = new PrismaClient();
+import prisma from './lib/prisma';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
