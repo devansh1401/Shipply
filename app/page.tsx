@@ -20,11 +20,19 @@ export default async function Home() {
           >
             Book Now
           </Link>
+          <Link
+            href="/driver"
+            className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mr-4"
+          >
+            Driver Dashboard
+          </Link>
           <SignOutButton />
         </div>
       ) : (
         <div>
-          <p className="mb-4">Please sign in to book a ride</p>
+          <p className="mb-4">
+            Please sign in to book a ride or access the driver dashboard
+          </p>
           <SignInButton />
         </div>
       )}

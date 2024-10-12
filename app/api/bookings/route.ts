@@ -1,7 +1,8 @@
-import { calculateDistance, calculatePrice } from '@/app/utils/pricingUtils';
 import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
+import { calculateDistance, calculatePrice } from '@/utils/pricingUtils';
 import { BookingStatus, VehicleType } from '@prisma/client';
+import { emitNewBooking } from '@/utils/socketEmitter';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
@@ -51,8 +52,10 @@ export async function POST(req: NextRequest) {
         distance,
       },
     });
+    // Emit the new booking event
+    emitNewBooking(booking);
 
-    return NextResponse.json(booking, { status: 201 });
+    return NextResponse.json({ ...booking, id: booking.id }, { status: 201 });
   } catch (error) {
     console.error('Error creating booking:', error);
     return NextResponse.json(

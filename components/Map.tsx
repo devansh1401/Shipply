@@ -1,15 +1,6 @@
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import React, { useEffect } from 'react';
+import React from 'react';
 import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
-
-// Fix Leaflet icon issue
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: '/leaflet/marker-icon-2x.png',
-  iconUrl: '/leaflet/marker-icon.png',
-  shadowUrl: '/leaflet/marker-shadow.png',
-});
 
 interface Location {
   lat: number;
@@ -21,6 +12,7 @@ interface MapProps {
   dropoff: Location;
   setPickup: (location: Location) => void;
   setDropoff: (location: Location) => void;
+  driverLocation: Location | null;
 }
 
 const MapEvents: React.FC<{ onClick: (e: L.LeafletMouseEvent) => void }> = ({
@@ -37,14 +29,10 @@ const Map: React.FC<MapProps> = ({
   dropoff,
   setPickup,
   setDropoff,
+  driverLocation,
 }) => {
-  useEffect(() => {
-    console.log('Map component mounted');
-  }, []);
-
   const handleMapClick = (e: L.LeafletMouseEvent) => {
     const { lat, lng } = e.latlng;
-    console.log('Map clicked at:', lat, lng);
     if (pickup.lat === 0 && pickup.lng === 0) {
       setPickup({ lat, lng });
     } else if (dropoff.lat === 0 && dropoff.lng === 0) {
@@ -61,11 +49,6 @@ const Map: React.FC<MapProps> = ({
       <TileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        eventHandlers={{
-          tileloadstart: () => console.log('Tile load started'),
-          tileload: () => console.log('Tile loaded'),
-          tileerror: (error) => console.error('Tile error:', error),
-        }}
       />
       <MapEvents onClick={handleMapClick} />
       {pickup.lat !== 0 && pickup.lng !== 0 && (
@@ -73,6 +56,16 @@ const Map: React.FC<MapProps> = ({
       )}
       {dropoff.lat !== 0 && dropoff.lng !== 0 && (
         <Marker position={[dropoff.lat, dropoff.lng]} />
+      )}
+      {driverLocation && (
+        <Marker
+          position={[driverLocation.lat, driverLocation.lng]}
+          icon={L.icon({
+            iconUrl: '/leaflet/marker-icon-2x.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+          })}
+        />
       )}
     </MapContainer>
   );

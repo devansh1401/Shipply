@@ -11,6 +11,13 @@ interface BookingFormProps {
   dropoff: Location;
   setPickup: (location: Location) => void;
   setDropoff: (location: Location) => void;
+  onSubmit: (bookingData: {
+    pickupLat: number;
+    pickupLng: number;
+    dropoffLat: number;
+    dropoffLng: number;
+    vehicleType: VehicleType;
+  }) => Promise<void>;
 }
 
 const BookingForm: React.FC<BookingFormProps> = ({
@@ -18,6 +25,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
   dropoff,
   setPickup,
   setDropoff,
+  onSubmit,
 }) => {
   const [vehicleType, setVehicleType] = useState<VehicleType>(VehicleType.CAR);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,28 +39,14 @@ const BookingForm: React.FC<BookingFormProps> = ({
     setBookingConfirmation(null);
 
     try {
-      const response = await fetch('/api/bookings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          pickupLat: pickup.lat,
-          pickupLng: pickup.lng,
-          dropoffLat: dropoff.lat,
-          dropoffLng: dropoff.lng,
-          vehicleType,
-        }),
+      await onSubmit({
+        pickupLat: pickup.lat,
+        pickupLng: pickup.lng,
+        dropoffLat: dropoff.lat,
+        dropoffLng: dropoff.lng,
+        vehicleType,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create booking');
-      }
-
-      const booking = await response.json();
-      setBookingConfirmation(booking);
-      console.log('Booking created:', booking);
+      setBookingConfirmation({ message: 'Booking submitted successfully' });
     } catch (error) {
       setError(
         error instanceof Error ? error.message : 'An unexpected error occurred'
@@ -130,13 +124,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
           role="alert"
         >
           <strong className="font-bold">Booking Confirmed!</strong>
-          <p className="block sm:inline">
-            Your estimated price is $
-            {bookingConfirmation.priceEstimate.toFixed(2)}
-          </p>
-          <p className="block sm:inline">
-            Distance: {bookingConfirmation.distance.toFixed(2)} km
-          </p>
+          <p className="block sm:inline">{bookingConfirmation.message}</p>
         </div>
       )}
 

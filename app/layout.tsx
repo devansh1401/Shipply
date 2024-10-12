@@ -2,10 +2,10 @@
 import { auth } from '@/auth';
 import SignInButton from '@/components/SignInButton';
 import SignOutButton from '@/components/SignOutButton';
-import 'leaflet/dist/leaflet.css'; // Add this line
 import type { Metadata } from 'next';
 import { SessionProvider } from 'next-auth/react';
 import localFont from 'next/font/local';
+import Script from 'next/script';
 import './globals.css';
 
 const geistSans = localFont({
@@ -31,15 +31,13 @@ export default async function RootLayout({
 }>) {
   const session = await auth();
 
-  console.log('RootLayout rendered');
-
   return (
     <html lang="en">
       <head>
         <link
           rel="stylesheet"
-          href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
-          integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
           crossOrigin=""
         />
       </head>
@@ -64,6 +62,12 @@ export default async function RootLayout({
           </nav>
           <main className="container mx-auto mt-8">{children}</main>
         </SessionProvider>
+        <Script
+          src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+          crossOrigin=""
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
