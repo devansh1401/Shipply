@@ -1,5 +1,6 @@
+import { calculateDistance, calculatePrice } from '@/utils/pricingUtils';
 import { VehicleType } from '@prisma/client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface Location {
   lat: number;
@@ -31,6 +32,20 @@ const BookingForm: React.FC<BookingFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bookingConfirmation, setBookingConfirmation] = useState<any>(null);
+  const [estimatedPrice, setEstimatedPrice] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (pickup.lat && pickup.lng && dropoff.lat && dropoff.lng) {
+      const distance = calculateDistance(
+        pickup.lat,
+        pickup.lng,
+        dropoff.lat,
+        dropoff.lng
+      );
+      const price = calculatePrice(distance, vehicleType);
+      setEstimatedPrice(price);
+    }
+  }, [pickup, dropoff, vehicleType]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,6 +131,14 @@ const BookingForm: React.FC<BookingFormProps> = ({
           ))}
         </select>
       </div>
+
+      {estimatedPrice !== null && (
+        <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded relative">
+          <strong className="font-bold">Estimated Price: </strong>
+          <span className="block sm:inline">${estimatedPrice.toFixed(2)}</span>
+        </div>
+      )}
+
       {error && <div className="text-red-500">{error}</div>}
 
       {bookingConfirmation && (

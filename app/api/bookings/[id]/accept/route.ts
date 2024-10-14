@@ -1,10 +1,7 @@
 import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
-import {
-  emitBookingUpdated,
-  emitDriverStatusUpdated,
-} from '@/utils/socketEmitter';
-import { BookingStatus, DriverStatus, Prisma } from '@prisma/client';
+import { emitBookingUpdated } from '@/utils/socketEmitter';
+import { BookingStatus, DriverStatus } from '@prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(
@@ -23,26 +20,11 @@ export async function POST(
     const result = await prisma.$transaction(async (prisma) => {
       const driver = await prisma.driver.findUnique({
         where: { userId: userId },
+        include: { vehicle: true },
       });
 
       if (!driver) {
         throw new Error('Driver not found for this user');
-      }
-
-      if (driver.status !== DriverStatus.AVAILABLE) {
-        throw new Error('Driver is not available to accept bookings');
-      }
-
-      const booking = await prisma.booking.findUnique({
-        where: { id: bookingId },
-      });
-
-      if (!booking) {
-        throw new Error('Booking not found');
-      }
-
-      if (booking.status !== BookingStatus.PENDING) {
-        throw new Error('Booking is no longer available');
       }
 
       const updatedBooking = await prisma.booking.update({
@@ -58,27 +40,28 @@ export async function POST(
         data: { status: DriverStatus.BUSY },
       });
 
-      return { updatedBooking, updatedDriver };
+      return { updatedBooking, updatedDriver, driver };
     });
 
-    // Emit socket events to notify the user and update driver status
-    emitBookingUpdated(bookingId, result.updatedBooking);
-    emitDriverStatusUpdated(
-      result.updatedDriver.id,
-      result.updatedDriver.status
-    );
+    // Prepare driver details for the response
+    const driverDetails = result.driver
+      ? {
+          id: result.driver.id,
+          name: result.driver.name,
+          vehicleType: result.driver.vehicle?.type,
+          plateNumber: result.driver.vehicle?.plateNumber,
+        }
+      : null;
 
-    return NextResponse.json(result.updatedBooking);
+    // Emit socket event with driver details
+    emitBookingUpdated(bookingId, result.updatedBooking, driverDetails);
+
+    return NextResponse.json({
+      ...result.updatedBooking,
+      driver: driverDetails,
+    });
   } catch (error) {
     console.error('Error accepting booking:', error);
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return NextResponse.json(
-          { error: 'Booking not found or already accepted' },
-          { status: 404 }
-        );
-      }
-    }
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }

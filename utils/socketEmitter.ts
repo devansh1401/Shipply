@@ -1,4 +1,4 @@
-import { Booking, DriverStatus } from '@prisma/client';
+import { Booking, BookingStatus, DriverStatus } from '@prisma/client';
 import { Server as SocketIOServer } from 'socket.io';
 
 let io: SocketIOServer | null = null;
@@ -12,9 +12,21 @@ export function getSocketIO() {
   return io;
 }
 
-export function emitBookingUpdated(bookingId: string, updatedBooking: Booking) {
+export function emitBookingUpdated(
+  bookingId: string,
+  updatedBooking: Booking,
+  driverDetails: {
+    id: string;
+    name: string;
+    vehicleType?: string;
+    plateNumber?: string;
+  } | null
+) {
   if (io) {
-    io.to(`booking:${bookingId}`).emit('bookingUpdated', updatedBooking);
+    io.to(`booking:${bookingId}`).emit('bookingUpdated', {
+      ...updatedBooking,
+      driver: driverDetails,
+    });
   } else {
     console.warn('Socket.IO not initialized. Skipping emitBookingUpdated.');
   }
@@ -40,6 +52,19 @@ export function emitDriverStatusUpdated(
   } else {
     console.warn(
       'Socket.IO not initialized. Skipping emitDriverStatusUpdated.'
+    );
+  }
+}
+
+export function emitDriverUpdateBooking(
+  bookingId: string,
+  status: BookingStatus
+) {
+  if (io) {
+    io.emit('driverUpdateBooking', { bookingId, status });
+  } else {
+    console.warn(
+      'Socket.IO not initialized. Skipping emitDriverUpdateBooking.'
     );
   }
 }

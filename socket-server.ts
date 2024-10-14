@@ -1,6 +1,6 @@
 import { BookingStatus } from '@prisma/client';
 import { createServer } from 'http';
-import { Server as SocketIOServer } from 'socket.io';
+import { Socket, Server as SocketIOServer } from 'socket.io';
 import prisma from './lib/prisma.js';
 import { setDriverLocation, updateBookingTracking } from './utils/redis.js';
 
@@ -11,41 +11,71 @@ const io = new SocketIOServer(httpServer, {
   },
 });
 
-io.on('connection', (socket) => {
+io.on('connection', (socket: Socket) => {
   console.log('A client connected');
 
   socket.on('disconnect', () => {
     console.log('A client disconnected');
   });
 
-  socket.on('joinBookingRoom', (bookingId) => {
+  socket.on('joinBookingRoom', (bookingId: string) => {
     socket.join(`booking:${bookingId}`);
   });
 
-  socket.on('leaveBookingRoom', (bookingId) => {
+  socket.on('leaveBookingRoom', (bookingId: string) => {
     socket.leave(`booking:${bookingId}`);
   });
 
-  socket.on('driverConnect', (driverId) => {
+  socket.on('driverConnect', (driverId: string) => {
     socket.join(`driver:${driverId}`);
     console.log(`Driver ${driverId} connected`);
   });
 
-  socket.on('driverLocation', async (data) => {
-    const { driverId, bookingId, lat, lng } = data;
-    await setDriverLocation(driverId, lat, lng);
+  socket.on(
+    'driverLocation',
+    async (data: {
+      driverId: string;
+      bookingId: string;
+      lat: number;
+      lng: number;
+    }) => {
+      const { driverId, bookingId, lat, lng } = data;
+      await setDriverLocation(driverId, lat, lng);
 
-    if (bookingId) {
-      await updateBookingTracking(bookingId, lat, lng);
-      // Broadcast to clients tracking this booking
-      io.to(`booking:${bookingId}`).emit('driverLocationUpdate', {
-        lat,
-        lng,
-      });
+      if (bookingId) {
+        await updateBookingTracking(bookingId, lat, lng);
+        // Broadcast to clients tracking this booking
+        io.to(`booking:${bookingId}`).emit('driverLocationUpdate', {
+          lat,
+          lng,
+        });
+      }
     }
-  });
+  );
 
-  socket.on('newBooking', async (bookingId) => {
+  socket.on(
+    'driverUpdateBooking',
+    async (data: { bookingId: string; status: BookingStatus }) => {
+      try {
+        const { bookingId, status } = data;
+        if (!bookingId) {
+          console.error('BookingId is undefined');
+          return;
+        }
+        const updatedBooking = await prisma.booking.update({
+          where: { id: bookingId },
+          data: { status },
+        });
+
+        // Broadcast to clients tracking this booking
+        io.to(`booking:${bookingId}`).emit('bookingUpdated', updatedBooking);
+      } catch (error) {
+        console.error('Error processing driver booking update:', error);
+      }
+    }
+  );
+
+  socket.on('newBooking', async (bookingId: string) => {
     try {
       const booking = await prisma.booking.findUnique({
         where: { id: bookingId },

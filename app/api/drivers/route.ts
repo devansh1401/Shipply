@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
 
     // Check if driver already exists
     let driver = await prisma.driver.findUnique({
-      where: { email: session.user.email! },
+      where: { userId: session.user.id },
     });
 
     if (driver) {
@@ -30,6 +30,9 @@ export async function POST(req: NextRequest) {
         email: session.user.email!,
         phone,
         status: 'AVAILABLE',
+        user: {
+          connect: { id: session.user.id },
+        },
         vehicle: {
           create: {
             type: vehicleType,

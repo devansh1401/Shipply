@@ -29,6 +29,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Validate vehicleType
+    if (!Object.values(VehicleType).includes(vehicleType)) {
+      return NextResponse.json(
+        { error: 'Invalid vehicle type' },
+        { status: 400 }
+      );
+    }
+
     const distance = calculateDistance(
       parseFloat(pickupLat),
       parseFloat(pickupLng),
@@ -53,14 +61,16 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Attempt to emit the new booking event, but don't throw an error if it fails
+    // Emit the new booking event
     try {
-      emitNewBooking(booking);
+      await emitNewBooking(booking);
+      console.log('New booking event emitted successfully');
     } catch (socketError) {
-      console.warn('Failed to emit new booking event:', socketError);
+      console.error('Failed to emit new booking event:', socketError);
+      // Consider if you want to handle this error differently
     }
 
-    return NextResponse.json({ ...booking, id: booking.id }, { status: 201 });
+    return NextResponse.json(booking, { status: 201 });
   } catch (error) {
     console.error('Error creating booking:', error);
     return NextResponse.json(
@@ -77,9 +87,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { searchParams } = new URL(req.url);
+    const status = searchParams.get('status');
+
+    let whereClause: any = { userId: session.user.id };
+    if (status) {
+      whereClause.status = status;
+    }
+
     const bookings = await prisma.booking.findMany({
-      where: { userId: session.user.id },
+      where: whereClause,
       orderBy: { createdAt: 'desc' },
+      include: { driver: true }, // Include driver details if needed
     });
 
     return NextResponse.json(bookings);

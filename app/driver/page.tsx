@@ -9,8 +9,11 @@ import {
   VehicleType,
 } from '@prisma/client';
 import { useSession } from 'next-auth/react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+
+const Map = dynamic(() => import('@/components/Map'), { ssr: false });
 
 export default function DriverPage() {
   const { data: session, status } = useSession();
@@ -26,6 +29,72 @@ export default function DriverPage() {
     plateNumber: '',
   });
 
+  const [jobStatus, setJobStatus] = useState<BookingStatus | null>(null);
+  const [driverLocation, setDriverLocation] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (driver) {
+      // Simulate driver location updates
+      const interval = setInterval(() => {
+        setDriverLocation({
+          lat: Math.random() * 180 - 90,
+          lng: Math.random() * 360 - 180,
+        });
+      }, 5000);
+
+      return () => clearInterval(interval);
+    }
+  }, [driver]);
+
+  useEffect(() => {
+    if (currentBooking) {
+      setJobStatus(currentBooking.status);
+    }
+  }, [currentBooking]);
+
+  const updateJobStatus = async (newStatus: BookingStatus) => {
+    if (currentBooking && driver) {
+      try {
+        const response = await fetch(
+          `/api/bookings/${currentBooking.id}/status`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus }),
+          }
+        );
+        if (response.ok) {
+          const updatedBooking = await response.json();
+          setCurrentBooking(updatedBooking);
+          setJobStatus(updatedBooking.status);
+          // Emit socket event to update client
+          socket.emit('driverUpdateBooking', {
+            bookingId: updatedBooking.id,
+            status: newStatus,
+          });
+
+          if (newStatus === BookingStatus.COMPLETED) {
+            setCurrentBooking(null);
+            setDriver((prev) =>
+              prev ? { ...prev, status: DriverStatus.AVAILABLE } : null
+            );
+            fetchPendingBookings();
+            // Emit socket event to update driver status
+            socket.emit('driverStatusUpdated', {
+              driverId: driver.id,
+              status: DriverStatus.AVAILABLE,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error updating job status:', error);
+      }
+    }
+  };
+
   const fetchDriverDetails = useCallback(async () => {
     try {
       const response = await fetch('/api/drivers');
@@ -35,6 +104,7 @@ export default function DriverPage() {
         if (driverData.status === DriverStatus.BUSY) {
           fetchCurrentBooking();
         } else {
+          setCurrentBooking(null);
           fetchPendingBookings();
         }
       } else if (response.status === 404) {
@@ -44,7 +114,7 @@ export default function DriverPage() {
     } catch (error) {
       console.error('Error fetching driver details:', error);
     }
-  }, []); // Empty dependency array as it doesn't use any external values
+  }, []);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -125,11 +195,15 @@ export default function DriverPage() {
         setIsRegistering(false);
         fetchDriverDetails();
       } else {
-        const error = await response.json();
-        console.error('Registration failed:', error);
+        const errorData = await response.json();
+        console.error('Registration failed:', errorData.error);
+        // Display error to the user
+        alert(`Registration failed: ${errorData.error}`);
       }
     } catch (error) {
       console.error('Error during registration:', error);
+      // Display a generic error message to the user
+      alert('An error occurred during registration. Please try again.');
     }
   };
 
@@ -153,26 +227,6 @@ export default function DriverPage() {
     setAvailableBookings((prev) =>
       prev.filter((booking) => booking.id !== bookingId)
     );
-  };
-
-  const handleCompleteBooking = async () => {
-    if (currentBooking) {
-      try {
-        const response = await fetch(
-          `/api/bookings/${currentBooking.id}/complete`,
-          {
-            method: 'POST',
-          }
-        );
-        if (response.ok) {
-          setCurrentBooking(null);
-          setDriver((prev) => ({ ...prev!, status: DriverStatus.AVAILABLE }));
-          fetchPendingBookings();
-        }
-      } catch (error) {
-        console.error('Error completing booking:', error);
-      }
-    }
   };
 
   if (status === 'loading') {
@@ -266,14 +320,57 @@ export default function DriverPage() {
             Dropoff: {currentBooking.dropoffLat}, {currentBooking.dropoffLng}
           </p>
           <p>Status: {currentBooking.status}</p>
-          {currentBooking.status === BookingStatus.IN_PROGRESS && (
-            <button
-              onClick={handleCompleteBooking}
-              className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mt-4"
-            >
-              Complete Booking
-            </button>
-          )}
+          <div className="mt-4">
+            {currentBooking.status === BookingStatus.ACCEPTED && (
+              <button
+                onClick={() =>
+                  updateJobStatus(BookingStatus.EN_ROUTE_TO_PICKUP)
+                }
+                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mr-2"
+              >
+                En Route to Pickup
+              </button>
+            )}
+            {currentBooking.status === BookingStatus.EN_ROUTE_TO_PICKUP && (
+              <button
+                onClick={() => updateJobStatus(BookingStatus.ARRIVED_AT_PICKUP)}
+                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mr-2"
+              >
+                Arrived at Pickup
+              </button>
+            )}
+            {currentBooking.status === BookingStatus.ARRIVED_AT_PICKUP && (
+              <button
+                onClick={() => updateJobStatus(BookingStatus.IN_PROGRESS)}
+                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mr-2"
+              >
+                Start Journey
+              </button>
+            )}
+            {currentBooking.status === BookingStatus.IN_PROGRESS && (
+              <button
+                onClick={() => updateJobStatus(BookingStatus.COMPLETED)}
+                className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+              >
+                Complete Journey
+              </button>
+            )}
+          </div>
+          <div className="mt-4" style={{ height: '400px' }}>
+            <Map
+              pickup={{
+                lat: currentBooking.pickupLat,
+                lng: currentBooking.pickupLng,
+              }}
+              dropoff={{
+                lat: currentBooking.dropoffLat,
+                lng: currentBooking.dropoffLng,
+              }}
+              driverLocation={driverLocation}
+              setPickup={() => {}}
+              setDropoff={() => {}}
+            />
+          </div>
         </div>
       ) : driver.status === DriverStatus.AVAILABLE ? (
         <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
