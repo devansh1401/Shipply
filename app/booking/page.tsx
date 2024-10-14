@@ -227,6 +227,7 @@ export default function BookingPage() {
           setPickup={setPickup}
           setDropoff={setDropoff}
           driverLocation={driverLocation}
+          driverDetails={driverDetails}
         />
       </div>
     </div>

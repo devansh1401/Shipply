@@ -4,8 +4,9 @@ import socket from '@/utils/socket';
 import {
   Booking,
   BookingStatus,
-  Driver,
   DriverStatus,
+  Driver as PrismaDriver,
+  Vehicle,
   VehicleType,
 } from '@prisma/client';
 import { useSession } from 'next-auth/react';
@@ -14,6 +15,10 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
 const Map = dynamic(() => import('@/components/Map'), { ssr: false });
+
+type Driver = PrismaDriver & {
+  vehicle: Vehicle | null;
+};
 
 export default function DriverPage() {
   const { data: session, status } = useSession();
@@ -369,6 +374,13 @@ export default function DriverPage() {
               driverLocation={driverLocation}
               setPickup={() => {}}
               setDropoff={() => {}}
+              driverDetails={{
+                id: driver.id,
+                name: driver.name,
+                vehicleType: driver.vehicle?.type || 'Unknown',
+                plateNumber: driver.vehicle?.plateNumber || 'Unknown',
+                phone: driver.phone,
+              }}
             />
           </div>
         </div>
