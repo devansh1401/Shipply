@@ -24,10 +24,11 @@ interface DriverDetails {
 interface MapProps {
   pickup: Location;
   dropoff: Location;
-  setPickup: (location: Location) => void;
-  setDropoff: (location: Location) => void;
+  setPickup?: (location: Location) => void;
+  setDropoff?: (location: Location) => void;
   driverLocation: Location | null;
   driverDetails?: DriverDetails | null;
+  clickEnabled?: boolean;
 }
 
 const MapEvents: React.FC<{ onClick: (e: L.LeafletMouseEvent) => void }> = ({
@@ -46,11 +47,14 @@ const Map: React.FC<MapProps> = ({
   setDropoff,
   driverLocation,
   driverDetails,
+  clickEnabled = true,
 }) => {
   const mapRef = useRef<L.Map | null>(null);
   const driverMarkerRef = useRef<L.Marker | null>(null);
 
   const handleMapClick = (e: L.LeafletMouseEvent) => {
+    if (!clickEnabled || !setPickup || !setDropoff) return;
+
     const { lat, lng } = e.latlng;
     if (pickup.lat === 0 && pickup.lng === 0) {
       setPickup({ lat, lng });
@@ -60,7 +64,13 @@ const Map: React.FC<MapProps> = ({
   };
 
   useEffect(() => {
-    if (mapRef.current) {
+    if (
+      mapRef.current &&
+      pickup.lat !== 0 &&
+      pickup.lng !== 0 &&
+      dropoff.lat !== 0 &&
+      dropoff.lng !== 0
+    ) {
       mapRef.current.fitBounds([
         [pickup.lat, pickup.lng],
         [dropoff.lat, dropoff.lng],
@@ -72,10 +82,11 @@ const Map: React.FC<MapProps> = ({
     if (mapRef.current && driverLocation) {
       if (!driverMarkerRef.current) {
         const driverIcon = L.icon({
-          iconUrl: '/leaflet/marker-icon-2x.png',
-          iconSize: [25, 41],
-          iconAnchor: [12, 41],
+          iconUrl: '/leaflet/car.png', // Update this path to your car icon
+          iconSize: [50, 30], // Adjust size as needed
+          iconAnchor: [25, 15], // Adjust anchor as needed
         });
+
         driverMarkerRef.current = L.marker(
           [driverLocation.lat, driverLocation.lng],
           { icon: driverIcon }
@@ -88,24 +99,20 @@ const Map: React.FC<MapProps> = ({
       }
 
       if (driverDetails) {
-        driverMarkerRef.current
-          .bindPopup(
-            `
-          <b>Driver: ${driverDetails.name}</b><br>
-          Vehicle: ${driverDetails.vehicleType}<br>
-          Plate: ${driverDetails.plateNumber}<br>
-          Phone: ${driverDetails.phone}
-        `
-          )
-          .openPopup();
+        driverMarkerRef.current.bindPopup(`
+            <b>Driver: ${driverDetails.name}</b><br>
+            Vehicle: ${driverDetails.vehicleType}<br>
+            Plate: ${driverDetails.plateNumber}<br>
+            Phone: ${driverDetails.phone}
+          `);
       }
     }
   }, [driverLocation, driverDetails]);
 
   return (
     <MapContainer
-      center={[0, 0]}
-      zoom={2}
+      center={[pickup.lat || 0, pickup.lng || 0]}
+      zoom={13}
       style={{ height: '400px', width: '100%' }}
       ref={mapRef}
     >
@@ -113,7 +120,9 @@ const Map: React.FC<MapProps> = ({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
-      <MapEvents onClick={handleMapClick} />
+      {clickEnabled && setPickup && setDropoff && (
+        <MapEvents onClick={handleMapClick} />
+      )}
       {pickup.lat !== 0 && pickup.lng !== 0 && (
         <Marker position={[pickup.lat, pickup.lng]}>
           <Popup>Pickup Location</Popup>
@@ -128,9 +137,9 @@ const Map: React.FC<MapProps> = ({
         <Marker
           position={[driverLocation.lat, driverLocation.lng]}
           icon={L.icon({
-            iconUrl: '/leaflet/marker-icon-2x.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
+            iconUrl: '/leaflet/car.png', // Ensure this icon exists
+            iconSize: [50, 30],
+            iconAnchor: [25, 15],
           })}
         >
           <Popup>

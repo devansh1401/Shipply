@@ -20,6 +20,11 @@ type Driver = PrismaDriver & {
   vehicle: Vehicle | null;
 };
 
+interface Location {
+  lat: number;
+  lng: number;
+}
+
 export default function DriverPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -35,30 +40,48 @@ export default function DriverPage() {
   });
 
   const [jobStatus, setJobStatus] = useState<BookingStatus | null>(null);
-  const [driverLocation, setDriverLocation] = useState<{
-    lat: number;
-    lng: number;
-  } | null>(null);
-
-  useEffect(() => {
-    if (driver) {
-      // Simulate driver location updates
-      const interval = setInterval(() => {
-        setDriverLocation({
-          lat: Math.random() * 180 - 90,
-          lng: Math.random() * 360 - 180,
-        });
-      }, 5000);
-
-      return () => clearInterval(interval);
-    }
-  }, [driver]);
+  const [driverLocation, setDriverLocation] = useState<Location | null>(null);
 
   useEffect(() => {
     if (currentBooking) {
       setJobStatus(currentBooking.status);
     }
   }, [currentBooking]);
+
+  const interpolateLocation = (
+    start: Location,
+    end: Location,
+    fraction: number
+  ): Location => {
+    const lat = start.lat + (end.lat - start.lat) * fraction;
+    const lng = start.lng + (end.lng - start.lng) * fraction;
+    return { lat, lng };
+  };
+
+  const startMovingDriver = (
+    start: Location,
+    end: Location,
+    duration: number
+  ) => {
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const fraction = Math.min(elapsed / duration, 1);
+      const newLocation = interpolateLocation(start, end, fraction);
+      setDriverLocation(newLocation);
+      // Emit the driver location to the server
+      socket.emit('driverLocation', {
+        driverId: driver!.id,
+        bookingId: currentBooking!.id,
+        lat: newLocation.lat,
+        lng: newLocation.lng,
+      });
+
+      if (fraction === 1) {
+        clearInterval(interval);
+      }
+    }, 2000); // update every 2 seconds
+  };
 
   const updateJobStatus = async (newStatus: BookingStatus) => {
     if (currentBooking && driver) {
@@ -81,7 +104,30 @@ export default function DriverPage() {
             status: newStatus,
           });
 
-          if (newStatus === BookingStatus.COMPLETED) {
+          // Start moving driver based on status
+          if (newStatus === BookingStatus.EN_ROUTE_TO_PICKUP) {
+            // Move driver towards pickup location
+            startMovingDriver(
+              driverLocation!,
+              { lat: currentBooking.pickupLat, lng: currentBooking.pickupLng },
+              60000 // move over 60 seconds
+            );
+          } else if (newStatus === BookingStatus.IN_PROGRESS) {
+            // Move driver towards dropoff location
+            // Update driverLocation to pickup location if needed
+            setDriverLocation({
+              lat: currentBooking.pickupLat,
+              lng: currentBooking.pickupLng,
+            });
+            startMovingDriver(
+              { lat: currentBooking.pickupLat, lng: currentBooking.pickupLng },
+              {
+                lat: currentBooking.dropoffLat,
+                lng: currentBooking.dropoffLng,
+              },
+              120000 // move over 2 minutes
+            );
+          } else if (newStatus === BookingStatus.COMPLETED) {
             setCurrentBooking(null);
             setDriver((prev) =>
               prev ? { ...prev, status: DriverStatus.AVAILABLE } : null
@@ -222,6 +268,13 @@ export default function DriverPage() {
         setCurrentBooking(acceptedBooking);
         setAvailableBookings([]);
         setDriver((prev) => ({ ...prev!, status: DriverStatus.BUSY }));
+
+        // Initialize driver location to a point near the pickup location
+        const initialDriverLocation = {
+          lat: acceptedBooking.pickupLat + (Math.random() - 0.5) * 0.01, // offset by up to +/- 0.005 degrees (~500m)
+          lng: acceptedBooking.pickupLng + (Math.random() - 0.5) * 0.01,
+        };
+        setDriverLocation(initialDriverLocation);
       }
     } catch (error) {
       console.error('Error accepting booking:', error);
@@ -381,6 +434,7 @@ export default function DriverPage() {
                 plateNumber: driver.vehicle?.plateNumber || 'Unknown',
                 phone: driver.phone,
               }}
+              clickEnabled={false}
             />
           </div>
         </div>
