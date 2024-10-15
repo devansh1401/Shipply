@@ -1,3 +1,4 @@
+// utils/socketEmitter.ts
 import { Booking, BookingStatus, DriverStatus } from '@prisma/client';
 import { Server as SocketIOServer } from 'socket.io';
 
@@ -14,19 +15,17 @@ export function getSocketIO() {
 
 export function emitBookingUpdated(
   bookingId: string,
-  updatedBooking: Booking,
-  driverDetails: {
-    id: string;
-    name: string;
-    vehicleType?: string;
-    plateNumber?: string;
-  } | null
+  updatedBooking: any,
+  driverDetails: any
 ) {
   if (io) {
+    console.log('Emitting bookingUpdated event for booking:', bookingId);
+    console.log('Driver details being emitted:', driverDetails);
     io.to(`booking:${bookingId}`).emit('bookingUpdated', {
       ...updatedBooking,
       driver: driverDetails,
     });
+    console.log('bookingUpdated event emitted');
   } else {
     console.warn('Socket.IO not initialized. Skipping emitBookingUpdated.');
   }

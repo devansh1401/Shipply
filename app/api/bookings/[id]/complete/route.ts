@@ -1,3 +1,4 @@
+// app/api/bookings/[id]/complete/route.ts
 import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
 import {

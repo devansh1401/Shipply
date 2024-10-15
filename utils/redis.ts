@@ -7,6 +7,9 @@ client.on('error', (err) => console.log('Redis Client Error', err));
 
 client.connect().catch(console.error);
 
+const DRIVER_LOCATION_EXPIRY = 300; // 5 minutes
+const BOOKING_CACHE_EXPIRY = 3600; // 1 hour
+
 export async function setDriverLocation(
   driverId: string,
   lat: number,
@@ -16,13 +19,14 @@ export async function setDriverLocation(
     lat: lat.toString(),
     lng: lng.toString(),
   });
+  await client.expire(`driver:${driverId}`, DRIVER_LOCATION_EXPIRY);
 
-  // Periodically sync to database (e.g., every 5 minutes)
-  const shouldSync = Math.random() < 0.1; // 10% chance to sync on each update
-  if (shouldSync) {
+  const lastSync = await client.get(`driver:${driverId}:lastSync`);
+  if (!lastSync || Date.now() - parseInt(lastSync) > 300000) {
     await prisma.driverLocation.create({
       data: { driverId, lat, lng },
     });
+    await client.set(`driver:${driverId}:lastSync`, Date.now().toString());
   }
 }
 
@@ -42,4 +46,20 @@ export async function updateBookingTracking(
   await prisma.trackingUpdate.create({
     data: { bookingId, lat, lng },
   });
+  await client.del(`booking:${bookingId}`);
+}
+
+export async function cacheBooking(bookingId: string, bookingData: any) {
+  await client.set(`booking:${bookingId}`, JSON.stringify(bookingData), {
+    EX: BOOKING_CACHE_EXPIRY,
+  });
+}
+
+export async function getCachedBooking(bookingId: string) {
+  const cachedBooking = await client.get(`booking:${bookingId}`);
+  return cachedBooking ? JSON.parse(cachedBooking) : null;
+}
+
+export async function invalidateBookingCache(bookingId: string) {
+  await client.del(`booking:${bookingId}`);
 }
