@@ -9,6 +9,7 @@ An Logistic platform for moving goods, connecting users who need items transport
 - [Architecture](#architecture)
 - [Entity-Relationship Diagram](#entity-relationship-diagram)
 - [Technologies Used](#technologies-used)
+- [Screenshots](#screenshots)
 - [Installation](#installation)
 - [Usage](#usage)
 
@@ -80,6 +81,13 @@ The platform's database schema is designed to efficiently handle relationships b
 - **Geocoding and Mapping APIs**: [OpenStreetMap](https://www.openstreetmap.org/) (via Leaflet)
 - **Payment Processing**: (Placeholder for Payment Gateway, e.g., Stripe or PayPal)
 - **Monitoring and Logging**: (Placeholder for tools like Prometheus, Grafana)
+
+## Screenshots
+
+![ER Diagram](public/leaflet/1st.png)
+![ER Diagram](public/leaflet/2nd.png)
+![ER Diagram](public/leaflet/3rd.png)
+![ER Diagram](public/leaflet/4th.png)
 
 ## Installation
 

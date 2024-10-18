@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { calculateDistance, calculatePrice } from '@/utils/pricingUtils';
 import socket from '@/utils/socket';
 import { BookingStatus, VehicleType } from '@prisma/client';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -54,6 +55,7 @@ export default function BookingPageComponent({
     null
   );
   const router = useRouter();
+  const [estimatedPrice, setEstimatedPrice] = useState<number | null>(null);
 
   useEffect(() => {
     console.log('Component mounted');
@@ -97,6 +99,26 @@ export default function BookingPageComponent({
       }
     };
   }, [bookingId]);
+
+  useEffect(() => {
+    if (
+      pickup.lat !== 0 &&
+      pickup.lng !== 0 &&
+      dropoff.lat !== 0 &&
+      dropoff.lng !== 0
+    ) {
+      const distance = calculateDistance(
+        pickup.lat,
+        pickup.lng,
+        dropoff.lat,
+        dropoff.lng
+      );
+      const price = calculatePrice(distance, vehicleType);
+      setEstimatedPrice(price);
+    } else {
+      setEstimatedPrice(null);
+    }
+  }, [pickup, dropoff, vehicleType]);
 
   const fetchBookingDetails = async (id: string) => {
     try {
@@ -277,6 +299,14 @@ export default function BookingPageComponent({
                     </SelectContent>
                   </Select>
                 </div>
+                {estimatedPrice !== null && (
+                  <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded relative">
+                    <strong className="font-bold">Estimated Price: </strong>
+                    <span className="block sm:inline">
+                      ${estimatedPrice.toFixed(2)}
+                    </span>
+                  </div>
+                )}
                 <Button
                   type="submit"
                   className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors"
