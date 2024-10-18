@@ -1,3 +1,13 @@
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { calculateDistance, calculatePrice } from '@/utils/pricingUtils';
 import { VehicleType } from '@prisma/client';
 import React, { useEffect, useState } from 'react';
@@ -73,63 +83,49 @@ const BookingForm: React.FC<BookingFormProps> = ({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label
-          htmlFor="pickup"
-          className="block text-sm font-medium text-gray-700"
-        >
-          Pickup Location
-        </label>
-        <input
-          type="text"
+      <div className="space-y-2">
+        <Label htmlFor="pickup">Pickup Location</Label>
+        <Input
           id="pickup"
+          placeholder="Enter pickup coordinates (lat, lng)"
           value={`${pickup.lat.toFixed(6)}, ${pickup.lng.toFixed(6)}`}
           onChange={(e) => {
             const [lat, lng] = e.target.value.split(',').map(Number);
             setPickup({ lat, lng });
           }}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
           required
         />
       </div>
-      <div>
-        <label
-          htmlFor="dropoff"
-          className="block text-sm font-medium text-gray-700"
-        >
-          Dropoff Location
-        </label>
-        <input
-          type="text"
+      <div className="space-y-2">
+        <Label htmlFor="dropoff">Dropoff Location</Label>
+        <Input
           id="dropoff"
+          placeholder="Enter dropoff coordinates (lat, lng)"
           value={`${dropoff.lat.toFixed(6)}, ${dropoff.lng.toFixed(6)}`}
           onChange={(e) => {
             const [lat, lng] = e.target.value.split(',').map(Number);
             setDropoff({ lat, lng });
           }}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
           required
         />
       </div>
-      <div>
-        <label
-          htmlFor="vehicleType"
-          className="block text-sm font-medium text-gray-700"
+      <div className="space-y-2">
+        <Label htmlFor="vehicle-type">Vehicle Type</Label>
+        <Select
+          onValueChange={(value) => setVehicleType(value as VehicleType)}
+          required
         >
-          Vehicle Type
-        </label>
-        <select
-          id="vehicleType"
-          value={vehicleType}
-          onChange={(e) => setVehicleType(e.target.value as VehicleType)}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-        >
-          {Object.values(VehicleType).map((type) => (
-            <option key={type} value={type}>
-              {type}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger>
+            <SelectValue placeholder="Select vehicle type" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.values(VehicleType).map((type) => (
+              <SelectItem key={type} value={type}>
+                {type}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {estimatedPrice !== null && (
@@ -151,13 +147,13 @@ const BookingForm: React.FC<BookingFormProps> = ({
         </div>
       )}
 
-      <button
+      <Button
         type="submit"
         disabled={isSubmitting}
-        className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors"
       >
         {isSubmitting ? 'Booking...' : 'Book Now'}
-      </button>
+      </Button>
     </form>
   );
 };

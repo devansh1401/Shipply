@@ -52,6 +52,10 @@ const Map: React.FC<MapProps> = ({
   const mapRef = useRef<L.Map | null>(null);
   const driverMarkerRef = useRef<L.Marker | null>(null);
 
+  // Define default center coordinates for India
+  const defaultCenter: [number, number] = [20.5937, 78.9629]; // Approximate center of India
+  const defaultZoom = 5; // Adjust this value to get the desired initial view
+
   const handleMapClick = (e: L.LeafletMouseEvent) => {
     if (!clickEnabled || !setPickup || !setDropoff) return;
 
@@ -100,20 +104,20 @@ const Map: React.FC<MapProps> = ({
 
       if (driverDetails) {
         driverMarkerRef.current.bindPopup(`
-            <b>Driver: ${driverDetails.name}</b><br>
-            Vehicle: ${driverDetails.vehicleType}<br>
-            Plate: ${driverDetails.plateNumber}<br>
-            Phone: ${driverDetails.phone}
-          `);
+          <b>Driver: ${driverDetails.name}</b><br>
+          Vehicle: ${driverDetails.vehicleType}<br>
+          Plate: ${driverDetails.plateNumber}<br>
+          Phone: ${driverDetails.phone}
+        `);
       }
     }
   }, [driverLocation, driverDetails]);
 
   return (
     <MapContainer
-      center={[pickup.lat || 0, pickup.lng || 0]}
-      zoom={13}
-      style={{ height: '400px', width: '100%' }}
+      center={defaultCenter}
+      zoom={defaultZoom}
+      style={{ height: '100%', width: '100%' }}
       ref={mapRef}
     >
       <TileLayer
