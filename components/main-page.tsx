@@ -1,12 +1,18 @@
 'use client';
-
+import SignOutButton from '@/components/SignOutButton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { motion } from 'framer-motion';
 import { MapIcon, PackageIcon, TruckIcon } from 'lucide-react';
+import { Session } from 'next-auth';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-export function MainPage() {
+interface MainPageProps {
+  session: Session | null;
+}
+
+export function MainPage({ session }: MainPageProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -25,6 +31,7 @@ export function MainPage() {
           Welcome to Shipply
         </h1>
         <p className="text-xl text-gray-600">Your trusted logistics partner</p>
+        <p className="mt-2">Signed in as {session?.user?.name}</p>
       </motion.div>
 
       <Card className="w-full max-w-4xl bg-white/80 backdrop-blur-sm shadow-lg">
@@ -35,30 +42,28 @@ export function MainPage() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
             >
-              <Button
-                className="w-full h-32 text-lg font-semibold bg-blue-500 hover:bg-blue-600 transition-colors"
-                onClick={() => alert('Navigating to Booking Page')}
-              >
-                <div className="flex flex-col items-center">
-                  <PackageIcon className="h-8 w-8 mb-2" />
-                  Book a Shipment
-                </div>
-              </Button>
+              <Link href="/booking" passHref>
+                <Button className="w-full h-32 text-lg font-semibold bg-blue-500 hover:bg-blue-600 transition-colors">
+                  <div className="flex flex-col items-center">
+                    <PackageIcon className="h-8 w-8 mb-2" />
+                    Book a Shipment
+                  </div>
+                </Button>
+              </Link>
             </motion.div>
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
             >
-              <Button
-                className="w-full h-32 text-lg font-semibold bg-green-500 hover:bg-green-600 transition-colors"
-                onClick={() => alert('Navigating to Driver Dashboard')}
-              >
-                <div className="flex flex-col items-center">
-                  <TruckIcon className="h-8 w-8 mb-2" />
-                  Driver Dashboard
-                </div>
-              </Button>
+              <Link href="/driver" passHref>
+                <Button className="w-full h-32 text-lg font-semibold bg-green-500 hover:bg-green-600 transition-colors">
+                  <div className="flex flex-col items-center">
+                    <TruckIcon className="h-8 w-8 mb-2" />
+                    Driver Dashboard
+                  </div>
+                </Button>
+              </Link>
             </motion.div>
           </div>
         </CardContent>
@@ -84,7 +89,7 @@ export function MainPage() {
             },
             {
               icon: MapIcon,
-              title: 'Nationwide Coverage',
+              title: 'WorldWide Coverage',
               description: 'Extensive network of drivers',
             },
           ].map((feature, index) => (
@@ -100,6 +105,10 @@ export function MainPage() {
             </Card>
           ))}
       </motion.div>
+
+      <div className="mt-8">
+        <SignOutButton />
+      </div>
     </div>
   );
 }

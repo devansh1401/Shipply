@@ -1,7 +1,4 @@
-// app/layout.tsx
 import { auth } from '@/auth';
-import SignInButton from '@/components/SignInButton';
-import SignOutButton from '@/components/SignOutButton';
 import type { Metadata } from 'next';
 import { SessionProvider } from 'next-auth/react';
 import localFont from 'next/font/local';
@@ -45,22 +42,7 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <SessionProvider>
-          <nav className="bg-gray-800 text-white p-4">
-            <div className="container mx-auto flex justify-between items-center">
-              <h1 className="text-xl font-bold">Logistics Platform</h1>
-              <div>
-                {session ? (
-                  <>
-                    <span className="mr-4">Hello, {session.user?.name}</span>
-                    <SignOutButton />
-                  </>
-                ) : (
-                  <SignInButton />
-                )}
-              </div>
-            </div>
-          </nav>
-          <main className="container mx-auto mt-8">{children}</main>
+          <main>{children}</main>
         </SessionProvider>
         <Script
           src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
