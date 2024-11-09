@@ -19,6 +19,9 @@ This on-demand logistics platform enables users to book transportation services 
 
 The platform is designed to handle high traffic, supporting **10,000 concurrent requests per second**, **50 million registered users**, and **100,000 registered drivers** globally.
 
+## **Demo Video**
+**Loom**: https://www.loom.com/share/cece42907a4f41748a3369972665bd28?sid=7bd4e42c-a77b-4ead-abdc-4a08226d2364
+
 ## Features
 
 ### Users
